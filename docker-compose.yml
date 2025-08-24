@@ -5,12 +5,14 @@ services:
     build: .
     container_name: youtube-downloader
     ports:
-      - "8080:80"
+      - "${HOST_PORT:-8080}:80"
     volumes:
-      - ./downloads:/var/www/html/P/youtube
+      - ${DOWNLOAD_PATH:-./downloads}:/var/www/html/P/youtube
       - .:/var/www/html
     environment:
       - APACHE_DOCUMENT_ROOT=/var/www/html
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
     restart: unless-stopped
     networks:
       - youtube-network

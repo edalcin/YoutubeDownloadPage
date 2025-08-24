@@ -19,34 +19,52 @@ Sistema completo para download de vídeos do YouTube em Full HD usando Docker.
 ```
 Name: YouTube-Downloader
 Repository: ghcr.io/edalcin/youtubedownloadpage:latest
-WebUI: http://[IP]:[PORT:8080]/
+WebUI: http://[IP]:[HOST_PORT]/
 Icon URL: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/youtube.png
 
 Container Port: 80
-Host Port: 8080
+Host Port: [SUA_PORTA] (ex: 8080)
 
 Container Path: /var/www/html/P/youtube
-Host Path: /mnt/user/downloads/youtube
+Host Path: [SUA_PASTA] (ex: /mnt/user/downloads/youtube)
 Access Mode: Read/Write
 
 Environment Variables:
 - PUID: 99
 - PGID: 100
+- HOST_PORT: [SUA_PORTA] (opcional, padrão: 8080)
+- DOWNLOAD_PATH: [SUA_PASTA] (opcional, usado no docker-compose)
 ```
 
 ### **Método 3: Docker Compose**
-1. Baixe o arquivo `docker-compose.yml` do repositório:
+1. Baixe os arquivos do repositório:
 ```bash
 wget https://raw.githubusercontent.com/edalcin/YoutubeDownloadPage/main/docker-compose.yml
+wget https://raw.githubusercontent.com/edalcin/YoutubeDownloadPage/main/.env.example
 ```
 
-2. Execute o container:
+2. Configure as variáveis (opcional):
+```bash
+cp .env.example .env
+# Edite o arquivo .env com suas configurações específicas
+```
+
+3. Execute o container:
 ```bash
 docker-compose up -d
 ```
 
 ### **Método 4: Linha de Comando**
 ```bash
+# Exemplo básico
+docker run -d \
+  --name=youtube-downloader \
+  -p 8080:80 \
+  -v ./downloads:/var/www/html/P/youtube \
+  --restart unless-stopped \
+  ghcr.io/edalcin/youtubedownloadpage:latest
+
+# Exemplo para Unraid (com PUID/PGID personalizados)
 docker run -d \
   --name=youtube-downloader \
   -p 8080:80 \
@@ -111,13 +129,22 @@ youtube-downloader/
 
 ## 🔧 Configurações
 
+### Variáveis de Ambiente
+
+| Variável | Descrição | Padrão | Exemplo Unraid |
+|----------|-----------|--------|----------------|
+| `HOST_PORT` | Porta do host para acessar a aplicação | `8080` | `8080` |
+| `DOWNLOAD_PATH` | Caminho local para salvar os downloads | `./downloads` | `/mnt/user/downloads/youtube` |
+| `PUID` | ID do usuário para permissões de arquivo | `1000` | `99` |
+| `PGID` | ID do grupo para permissões de arquivo | `1000` | `100` |
+
 ### Pasta de download
 - **Padrão**: `P:\youtube` (dentro do container)
-- **Mapeada para**: `./downloads` (no host)
+- **Mapeada para**: `./downloads` (no host) ou `$DOWNLOAD_PATH`
 
 ### Porta
 - **Container**: 80
-- **Host**: 8080
+- **Host**: `$HOST_PORT` (padrão: 8080)
 
 ### Limites PHP
 - `max_execution_time`: Ilimitado
@@ -126,14 +153,29 @@ youtube-downloader/
 
 ## 🛠️ Personalização
 
-### Alterar pasta de download
+### Usando arquivo .env (Recomendado)
+1. Copie o arquivo de exemplo:
+```bash
+cp .env.example .env
+```
+
+2. Edite o arquivo `.env`:
+```bash
+# Exemplo para Unraid
+HOST_PORT=8080
+DOWNLOAD_PATH=/mnt/user/downloads/youtube
+PUID=99
+PGID=100
+```
+
+### Alterar pasta de download (manual)
 Edite o `docker-compose.yml`:
 ```yaml
 volumes:
   - /sua/pasta/preferida:/var/www/html/P/youtube
 ```
 
-### Alterar porta
+### Alterar porta (manual)
 Edite o `docker-compose.yml`:
 ```yaml
 ports:

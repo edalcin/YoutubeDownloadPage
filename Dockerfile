@@ -38,6 +38,10 @@ RUN echo '<Directory /var/www/html/>' >> /etc/apache2/apache2.conf && \
 # Copiar arquivos da aplicação
 COPY . /var/www/html/
 
+# Copiar script de inicialização Docker
+COPY docker-start.sh /usr/local/bin/docker-start.sh
+RUN chmod +x /usr/local/bin/docker-start.sh
+
 # Definir permissões
 RUN chown -R www-data:www-data /var/www/html && \
     chmod -R 755 /var/www/html
@@ -48,5 +52,9 @@ RUN yt-dlp --version
 # Expor porta 80
 EXPOSE 80
 
-# Comando para iniciar Apache
-CMD ["apache2-foreground"]
+# Variáveis de ambiente padrão
+ENV PUID=1000
+ENV PGID=1000
+
+# Comando para iniciar com script personalizado
+CMD ["/usr/local/bin/docker-start.sh"]
