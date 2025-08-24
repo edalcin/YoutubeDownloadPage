@@ -22,7 +22,7 @@ Acesse: http://localhost:8080
 2. Pesquise por "YouTube Downloader"
 3. Clique em **Install**
 
-> **Nota**: A imagem Docker será publicada automaticamente no GitHub Container Registry como `ghcr.io/edalcin/youtubedownloadpage:latest` após o próximo push. Enquanto isso, você pode fazer build local usando o método 4.
+> **Nota**: A imagem Docker está disponível no GitHub Container Registry como `ghcr.io/edalcin/youtubedownloadpage:latest`.
 
 ### **Método 2: Docker Template Manual**
 1. Vá para **Docker** no Unraid

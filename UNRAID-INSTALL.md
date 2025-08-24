@@ -1,5 +1,8 @@
 # 🖥️ YouTube Downloader - Instalação Unraid
 
+> **Nota**: Este guia descreve a instalação manual fazendo o build local da imagem. Para uma instalação mais simples usando a imagem pré-construída do GitHub, consulte as instruções no [README.md](README.md).
+
+
 ## 🚀 **Instalação Rápida (Recomendado)**
 
 Execute este comando no terminal do Unraid:
