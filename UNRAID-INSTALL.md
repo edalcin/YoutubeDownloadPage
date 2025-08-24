@@ -1,15 +1,32 @@
 # 🖥️ YouTube Downloader - Instalação Unraid
 
-## 📋 Passo a Passo Completo
+## 🚀 **Instalação Rápida (Recomendado)**
 
-### **1. Construir a Imagem Docker**
+Execute este comando no terminal do Unraid:
+
+```bash
+# Clone e execute automaticamente
+cd /tmp
+git clone https://github.com/edalcin/YoutubeDownloadPage.git
+cd YoutubeDownloadPage
+chmod +x unraid-setup.sh
+./unraid-setup.sh
+```
+
+## 📋 Passo a Passo Manual
+
+### **1. Preparar ambiente**
 No terminal do Unraid:
 ```bash
-# Navegar para a pasta do projeto
+# Criar pasta para o projeto
+mkdir -p /mnt/user/appdata/youtube-downloader
 cd /mnt/user/appdata/youtube-downloader
 
-# Construir a imagem
-docker build -t youtube-downloader:latest .
+# Fazer download dos arquivos
+git clone https://github.com/edalcin/YoutubeDownloadPage.git .
+
+# Construir a imagem local
+docker build -t youtube-downloader:local .
 ```
 
 ### **2. Criar Container via Interface Web**
@@ -19,7 +36,7 @@ docker build -t youtube-downloader:latest .
 | Campo | Valor |
 |-------|-------|
 | **Name** | `YouTube-Downloader` |
-| **Repository** | `youtube-downloader:latest` |
+| **Repository** | `youtube-downloader:local` |
 | **Network Type** | `Bridge` |
 | **Console shell command** | `Bash` |
 | **Privileged** | `No` |
