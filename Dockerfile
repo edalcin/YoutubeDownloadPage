@@ -5,6 +5,8 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
+    python3-setuptools \
+    python3-wheel \
     ffmpeg \
     curl \
     wget \
@@ -12,9 +14,11 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar yt-dlp usando método mais confiável
-RUN python3 -m pip install --upgrade pip && \
-    python3 -m pip install --no-cache-dir yt-dlp
+# Garantir que pip está funcionando e instalar yt-dlp
+RUN python3 --version && \
+    pip3 --version && \
+    pip3 install --upgrade pip setuptools wheel && \
+    pip3 install yt-dlp
 
 # Habilitar mod_rewrite do Apache
 RUN a2enmod rewrite
