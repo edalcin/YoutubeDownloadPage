@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  youtube-downloader:
+    build: .
+    container_name: youtube-downloader
+    ports:
+      - "8080:80"
+    volumes:
+      - ./downloads:/var/www/html/P/youtube
+      - .:/var/www/html
+    environment:
+      - APACHE_DOCUMENT_ROOT=/var/www/html
+    restart: unless-stopped
+    networks:
+      - youtube-network
+
+networks:
+  youtube-network:
+    driver: bridge
+
+volumes:
+  downloads:
+    driver: local
