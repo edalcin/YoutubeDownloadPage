@@ -2,25 +2,29 @@ version: '3.8'
 
 services:
   youtube-downloader:
-    build: .
+    build:
+      context: .
     container_name: youtube-downloader
     ports:
-      - "${HOST_PORT:-8080}:80"
+      - "8080:8080"
     volumes:
-      - ${DOWNLOAD_PATH:-./downloads}:/var/www/html/P/youtube
-      - .:/var/www/html
+      - ./downloads:/downloads
     environment:
-      - APACHE_DOCUMENT_ROOT=/var/www/html
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-1000}
+      - GIN_MODE=release
+      - DOWNLOAD_PATH=/downloads
+      - PORT=8080
     restart: unless-stopped
-    networks:
-      - youtube-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.youtube-downloader.rule=Host(`youtube.localhost`)"
+      - "traefik.http.services.youtube-downloader.loadbalancer.server.port=8080"
 
 networks:
-  youtube-network:
-    driver: bridge
-
-volumes:
-  downloads:
-    driver: local
+  default:
+    name: youtube-downloader-network

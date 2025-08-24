@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>YouTube-Downloader-Go</Name>
+  <Name>YouTube-Downloader</Name>
   <Repository>ghcr.io/edalcin/youtubedownloadpage:latest</Repository>
   <Registry>ghcr.io/edalcin/youtubedownloadpage:latest</Registry>
   <Network>bridge</Network>
@@ -9,10 +9,10 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/edalcin/YoutubeDownloadPage</Support>
   <Project>https://github.com/edalcin/YoutubeDownloadPage</Project>
-  <Overview>YouTube video downloader com interface moderna e alta performance. Versão otimizada em Go com imagem Docker ~220MB, WebSocket em tempo real e interface responsiva. Suporta múltiplas qualidades de vídeo (360p até melhor disponível) com progresso em tempo real.</Overview>
+  <Overview>YouTube video downloader com interface moderna e alta performance. Aplicação otimizada em Go com imagem Docker ~220MB, WebSocket em tempo real e interface responsiva. Suporta múltiplas qualidades de vídeo (360p até melhor disponível) com progresso em tempo real.</Overview>
   <Category>MediaApp:Video</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/edalcin/YoutubeDownloadPage/main/unraid-template-go.xml</TemplateURL>
+  <TemplateURL>https://raw.githubusercontent.com/edalcin/YoutubeDownloadPage/main/unraid-template.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/edalcin/YoutubeDownloadPage/main/icon.png</Icon>
   <ExtraParams>--restart=unless-stopped</ExtraParams>
   <PostArgs/>

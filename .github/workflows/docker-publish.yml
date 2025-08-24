@@ -1,4 +1,4 @@
-name: Build and Publish Docker Images
+name: Build and Publish Docker Image
 
 on:
   push:
@@ -12,7 +12,7 @@ env:
   IMAGE_NAME: edalcin/youtubedownloadpage
 
 jobs:
-  build-php:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -33,81 +33,34 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata for PHP version
-        id: meta-php
+      - name: Extract metadata
+        id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch,suffix=-php
-            type=ref,event=pr,suffix=-php
-            type=semver,pattern={{version}},suffix=-php
-            type=semver,pattern={{major}}.{{minor}},suffix=-php
-            type=raw,value=php,enable={{is_default_branch}}
-            type=raw,value=legacy,enable={{is_default_branch}}
-
-      - name: Build and push PHP Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-php.outputs.tags }}
-          labels: ${{ steps.meta-php.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
-
-  build-go:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log into registry ${{ env.REGISTRY }}
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata for Go version  
-        id: meta-go
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch,suffix=-go
-            type=ref,event=pr,suffix=-go
-            type=semver,pattern={{version}},suffix=-go
-            type=semver,pattern={{major}}.{{minor}},suffix=-go
-            type=raw,value=go,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push Go Docker image
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile.new
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-go.outputs.tags }}
-          labels: ${{ steps.meta-go.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
 
-      - name: Test Go Docker image
+      - name: Test Docker image
         if: github.event_name == 'pull_request'
         run: |
-          docker run --rm -d --name test-go-container ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta-go.outputs.version }}
+          docker run --rm -d --name test-container ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
           sleep 10
-          docker logs test-go-container || true
-          docker stop test-go-container || true
+          docker logs test-container || true
+          docker stop test-container || true

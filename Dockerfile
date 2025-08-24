@@ -1,65 +1,43 @@
-FROM php:8.2-apache
+# Multi-stage build para otimizar tamanho final
+FROM golang:1.22-alpine AS builder
 
-# Instalar dependências do sistema
-RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
-    python3-venv \
-    python3-setuptools \
-    python3-wheel \
+WORKDIR /app
+COPY go.mod ./
+RUN go mod download
+
+COPY . .
+RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o youtube-downloader .
+
+# Imagem final mínima
+FROM alpine:3.19
+
+# Instalar apenas dependências essenciais
+RUN apk --no-cache add \
+    yt-dlp \
     ffmpeg \
-    curl \
-    wget \
-    unzip \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    tzdata \
+    && rm -rf /var/cache/apk/*
 
-# Garantir que pip está funcionando e instalar yt-dlp
-RUN python3 --version && \
-    pip3 --version && \
-    pip3 install --upgrade pip setuptools wheel && \
-    pip3 install yt-dlp
-
-# Habilitar mod_rewrite do Apache
-RUN a2enmod rewrite
-
-# Configurar PHP
-RUN echo "max_execution_time = 0" >> /usr/local/etc/php/conf.d/custom.ini && \
-    echo "max_input_time = 0" >> /usr/local/etc/php/conf.d/custom.ini && \
-    echo "memory_limit = 512M" >> /usr/local/etc/php/conf.d/custom.ini && \
-    echo "post_max_size = 100M" >> /usr/local/etc/php/conf.d/custom.ini && \
-    echo "upload_max_filesize = 100M" >> /usr/local/etc/php/conf.d/custom.ini
+# Criar usuário não-root
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser
 
 # Criar diretório para downloads
-RUN mkdir -p /var/www/html/P/youtube && \
-    chown -R www-data:www-data /var/www/html/P && \
-    chmod -R 755 /var/www/html/P
+RUN mkdir -p /downloads && \
+    chown appuser:appuser /downloads
 
-# Configurar Apache para permitir .htaccess
-RUN echo '<Directory /var/www/html/>' >> /etc/apache2/apache2.conf && \
-    echo '    AllowOverride All' >> /etc/apache2/apache2.conf && \
-    echo '</Directory>' >> /etc/apache2/apache2.conf
+# Copiar binário do build stage
+COPY --from=builder /app/youtube-downloader /usr/local/bin/
+COPY --chown=appuser:appuser static/ /app/static/
 
-# Copiar arquivos da aplicação
-COPY . /var/www/html/
+USER appuser
+WORKDIR /app
 
-# Copiar script de inicialização Docker
-COPY docker-start.sh /usr/local/bin/docker-start.sh
-RUN chmod +x /usr/local/bin/docker-start.sh
+EXPOSE 8080
 
-# Definir permissões
-RUN chown -R www-data:www-data /var/www/html && \
-    chmod -R 755 /var/www/html
+# Variáveis de ambiente
+ENV GIN_MODE=release
+ENV DOWNLOAD_PATH=/downloads
 
-# Verificar se yt-dlp está funcionando
-RUN yt-dlp --version
-
-# Expor porta 80
-EXPOSE 80
-
-# Variáveis de ambiente padrão
-ENV PUID=1000
-ENV PGID=1000
-
-# Comando para iniciar com script personalizado
-CMD ["/usr/local/bin/docker-start.sh"]
+CMD ["youtube-downloader"]
