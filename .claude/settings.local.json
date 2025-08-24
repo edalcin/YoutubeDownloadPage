@@ -8,7 +8,13 @@
       "Bash(git push:*)",
       "WebFetch(domain:github.com)",
       "Bash(docker build:*)",
-      "Bash(go mod:*)"
+      "Bash(go mod:*)",
+      "Bash(docker run:*)",
+      "Bash(docker logs:*)",
+      "Bash(curl:*)",
+      "Bash(docker inspect:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)"
     ],
     "deny": [],
     "ask": []

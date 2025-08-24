@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>YouTube-Downloader-Go</Name>
+  <Repository>ghcr.io/edalcin/youtubedownloadpage:latest</Repository>
+  <Registry>ghcr.io/edalcin/youtubedownloadpage:latest</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/edalcin/YoutubeDownloadPage</Support>
+  <Project>https://github.com/edalcin/YoutubeDownloadPage</Project>
+  <Overview>YouTube video downloader com interface moderna e alta performance. Versão otimizada em Go com imagem Docker ~220MB, WebSocket em tempo real e interface responsiva. Suporta múltiplas qualidades de vídeo (360p até melhor disponível) com progresso em tempo real.</Overview>
+  <Category>MediaApp:Video</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/edalcin/YoutubeDownloadPage/main/unraid-template-go.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/edalcin/YoutubeDownloadPage/main/icon.png</Icon>
+  <ExtraParams>--restart=unless-stopped</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled>1756044800</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="WebUI Port" Target="8080" Default="8080" Mode="tcp" Description="Port para acesso à interface web" Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="Downloads Directory" Target="/downloads" Default="/mnt/user/downloads/youtube" Mode="rw" Description="Diretório local onde os vídeos serão salvos" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/downloads/youtube</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID para permissões de arquivo" Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID para permissões de arquivo" Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+  <Config Name="TZ" Target="TZ" Default="America/Sao_Paulo" Mode="" Description="Timezone" Type="Variable" Display="advanced" Required="false" Mask="false">America/Sao_Paulo</Config>
+  <Config Name="GIN_MODE" Target="GIN_MODE" Default="release" Mode="" Description="Modo do servidor Go (release/debug)" Type="Variable" Display="advanced" Required="false" Mask="false">release</Config>
+</Container>
