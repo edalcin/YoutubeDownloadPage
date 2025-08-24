@@ -112,6 +112,9 @@ class YouTubeDownloader {
             case 'info':
                 this.updateVideoInfo(data.title);
                 break;
+            case 'strategy':
+                this.updateStrategy(data.strategy, data.attempt);
+                break;
         }
     }
     
@@ -127,6 +130,13 @@ class YouTubeDownloader {
     
     updateVideoInfo(title) {
         document.getElementById('videoTitle').textContent = title;
+    }
+    
+    updateStrategy(strategy, attempt) {
+        const statusMessage = document.getElementById('statusMessage');
+        if (attempt > 1) {
+            statusMessage.textContent = `Tentativa ${attempt} com estratégia: ${strategy}`;
+        }
     }
     
     showProgress() {

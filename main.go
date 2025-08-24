@@ -38,6 +38,8 @@ type WSMessage struct {
 	Message  string `json:"message,omitempty"`
 	Filename string `json:"filename,omitempty"`
 	Size     string `json:"size,omitempty"`
+	Strategy string `json:"strategy,omitempty"`
+	Attempt  int    `json:"attempt,omitempty"`
 }
 
 type YouTubeDownloader struct {
@@ -96,24 +98,6 @@ func (yd *YouTubeDownloader) broadcast(message WSMessage) {
 	}
 }
 
-func (yd *YouTubeDownloader) getVideoInfo(url string) (map[string]string, error) {
-	cmd := exec.Command("yt-dlp", "--get-title", "--get-duration", "--get-filename", "-f", "best", url)
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("erro ao obter informações do vídeo: %v", err)
-	}
-
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(lines) < 3 {
-		return nil, fmt.Errorf("informações incompletas do vídeo")
-	}
-
-	return map[string]string{
-		"title":    strings.TrimSpace(lines[0]),
-		"duration": strings.TrimSpace(lines[1]),
-		"filename": strings.TrimSpace(lines[2]),
-	}, nil
-}
 
 func (yd *YouTubeDownloader) normalizeFilename(title string) string {
 	// Remove caracteres especiais e mantém apenas alphanumérricos, espaços, hífens e pontos
@@ -151,15 +135,81 @@ func (yd *YouTubeDownloader) download(url, quality string) error {
 	// Broadcast que começou
 	yd.broadcast(WSMessage{Type: "progress", Percent: 5, Status: "Verificando vídeo..."})
 
-	// Obter informações do vídeo
-	info, err := yd.getVideoInfo(url)
+	// Tentar com várias estratégias em caso de falha
+	var lastErr error
+	strategies := []string{"default", "cookies", "fallback"}
+	
+	for attempt, strategy := range strategies {
+		if attempt > 0 {
+			yd.broadcast(WSMessage{Type: "strategy", Strategy: strategy, Attempt: attempt + 1})
+		}
+		
+		// Obter informações do vídeo
+		info, err := yd.getVideoInfoWithStrategy(url, strategy)
+		if err != nil {
+			lastErr = err
+			log.Printf("Estratégia %s falhou: %v", strategy, err)
+			if attempt < len(strategies)-1 {
+				yd.broadcast(WSMessage{Type: "progress", Percent: 5, Status: fmt.Sprintf("Tentativa %d falhou, tentando estratégia: %s", attempt+1, strategies[attempt+1])})
+			}
+			continue
+		}
+		
+		// Se chegou aqui, conseguiu obter info, continuar com download
+		return yd.performDownload(url, quality, info, strategy)
+	}
+	
+	return fmt.Errorf("todas as estratégias falharam. Último erro: %v", lastErr)
+}
+
+func (yd *YouTubeDownloader) getVideoInfoWithStrategy(url, strategy string) (map[string]string, error) {
+	args := []string{
+		"--get-title", "--get-duration", "--get-filename",
+		"-f", "best",
+		"--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		"--referer", "https://www.youtube.com/",
+		"--no-check-certificates",
+		"--prefer-free-formats",
+		"--no-warnings",
+	}
+	
+	// Adicionar estratégias específicas
+	switch strategy {
+	case "cookies":
+		// Tentar usar cookies do browser se disponível
+		args = append(args, "--cookies-from-browser", "chrome,firefox,edge")
+	case "fallback":
+		// Estratégia mais conservadora
+		args = append(args, 
+			"--sleep-interval", "2",
+			"--max-sleep-interval", "5",
+			"--retries", "5")
+	}
+	
+	args = append(args, url)
+	
+	cmd := exec.Command("yt-dlp", args...)
+	output, err := cmd.Output()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("erro ao obter informações do vídeo com estratégia %s: %v", strategy, err)
 	}
 
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(lines) < 3 {
+		return nil, fmt.Errorf("informações incompletas do vídeo")
+	}
+
+	return map[string]string{
+		"title":    strings.TrimSpace(lines[0]),
+		"duration": strings.TrimSpace(lines[1]),
+		"filename": strings.TrimSpace(lines[2]),
+	}, nil
+}
+
+func (yd *YouTubeDownloader) performDownload(url, quality string, info map[string]string, strategy string) error {
 	// Broadcast informações do vídeo
 	yd.broadcast(WSMessage{Type: "info", Title: info["title"]})
-	yd.broadcast(WSMessage{Type: "progress", Percent: 10, Status: "Preparando download..."})
+	yd.broadcast(WSMessage{Type: "progress", Percent: 10, Status: fmt.Sprintf("Preparando download (estratégia: %s)...", strategy)})
 
 	// Preparar formato baseado na qualidade
 	var format string
@@ -180,13 +230,46 @@ func (yd *YouTubeDownloader) download(url, quality string) error {
 	normalizedFilename := yd.normalizeFilename(info["title"])
 	fullPath := filepath.Join(yd.downloadPath, normalizedFilename)
 
-	// Executar download com yt-dlp
-	cmd := exec.Command("yt-dlp", 
+	// Executar download com yt-dlp usando estratégias anti-bloqueio
+	args := []string{
 		"-f", format,
 		"--newline",
 		"--progress",
 		"-o", fullPath,
-		url)
+		// Headers anti-bloqueio
+		"--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		"--referer", "https://www.youtube.com/",
+		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+		"--add-header", "Accept-Language:en-US,en;q=0.5",
+		"--add-header", "Accept-Encoding:gzip, deflate, br",
+		"--add-header", "DNT:1",
+		"--add-header", "Connection:keep-alive",
+		"--add-header", "Upgrade-Insecure-Requests:1",
+		// Configurações anti-detecção
+		"--no-check-certificates",
+		"--prefer-free-formats",
+		"--no-warnings",
+		"--sleep-interval", "1",
+		"--max-sleep-interval", "3",
+		// Retry e recuperação
+		"--retries", "3",
+		"--fragment-retries", "3",
+		"--skip-unavailable-fragments",
+		"--abort-on-unavailable-fragment",
+		// Throttling para evitar rate limiting
+		"--limit-rate", "10M",
+	}
+	
+	// Adicionar estratégias específicas para download
+	switch strategy {
+	case "cookies":
+		args = append(args, "--cookies-from-browser", "chrome,firefox,edge")
+	case "fallback":
+		args = append(args, "--sleep-interval", "2", "--max-sleep-interval", "5")
+	}
+	
+	args = append(args, url)
+	cmd := exec.Command("yt-dlp", args...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
