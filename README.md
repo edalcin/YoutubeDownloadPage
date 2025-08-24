@@ -2,6 +2,19 @@
 
 Sistema completo para download de vídeos do YouTube em Full HD usando Docker.
 
+## 🚀 Instalação Rápida (Build Local)
+
+Para usar imediatamente, faça o build local:
+
+```bash
+git clone https://github.com/edalcin/YoutubeDownloadPage.git
+cd YoutubeDownloadPage
+docker build -t youtube-downloader:local .
+docker run -d -p 8080:80 -v ./downloads:/var/www/html/P/youtube youtube-downloader:local
+```
+
+Acesse: http://localhost:8080
+
 ## 🖥️ Instalação no Unraid
 
 ### **Método 1: Community Applications (Recomendado)**
@@ -9,7 +22,7 @@ Sistema completo para download de vídeos do YouTube em Full HD usando Docker.
 2. Pesquise por "YouTube Downloader"
 3. Clique em **Install**
 
-> **Nota**: A imagem Docker está disponível no GitHub Container Registry deste repositório como `ghcr.io/edalcin/youtubedownloadpage:latest`
+> **Nota**: A imagem Docker será publicada automaticamente no GitHub Container Registry como `ghcr.io/edalcin/youtubedownloadpage:latest` após o próximo push. Enquanto isso, você pode fazer build local usando o método 4.
 
 ### **Método 2: Docker Template Manual**
 1. Vá para **Docker** no Unraid
@@ -55,6 +68,8 @@ docker-compose up -d
 ```
 
 ### **Método 4: Linha de Comando**
+
+#### **Opção A: Usando imagem pré-construída (após publicação)**
 ```bash
 # Exemplo básico
 docker run -d \
@@ -73,6 +88,27 @@ docker run -d \
   -e PGID=100 \
   --restart unless-stopped \
   ghcr.io/edalcin/youtubedownloadpage:latest
+```
+
+#### **Opção B: Build local (disponível agora)**
+```bash
+# 1. Clone o repositório
+git clone https://github.com/edalcin/YoutubeDownloadPage.git
+cd YoutubeDownloadPage
+
+# 2. Fazer build da imagem
+docker build -t youtube-downloader:local .
+
+# 3. Executar container (exemplo Unraid)
+docker run -d \
+  --name=youtube-downloader \
+  -p 8999:80 \
+  -v /mnt/user/PlexStorage/YouTube:/var/www/html/P/youtube \
+  -e PUID=99 \
+  -e PGID=100 \
+  -e TZ=America/Sao_Paulo \
+  --restart unless-stopped \
+  youtube-downloader:local
 ```
 
 ## 📁 Configuração de Pastas Unraid
