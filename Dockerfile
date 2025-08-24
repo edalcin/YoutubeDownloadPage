@@ -11,13 +11,18 @@ RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o yo
 # Imagem final mínima
 FROM alpine:3.19
 
-# Instalar apenas dependências essenciais
+# Instalar dependências essenciais e yt-dlp via GitHub (como media-roller)
 RUN apk --no-cache add \
-    yt-dlp \
+    curl \
     ffmpeg \
     ca-certificates \
     tzdata \
-    && rm -rf /var/cache/apk/*
+    python3 \
+    && rm -rf /var/cache/apk/* \
+    # Instalar yt-dlp diretamente do GitHub (sempre atualizado)
+    && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp \
+    && /usr/local/bin/yt-dlp --update --update-to nightly
 
 # Criar usuário não-root
 RUN addgroup -g 1000 appuser && \

@@ -135,138 +135,36 @@ func (yd *YouTubeDownloader) download(url, quality string) error {
 	// Broadcast que começou
 	yd.broadcast(WSMessage{Type: "progress", Percent: 5, Status: "Verificando vídeo..."})
 
-	// Estratégias mais agressivas para contornar bloqueios do YouTube
-	var lastErr error
-	strategies := []string{
-		"default", "cookies", "ios", "android", 
-		"tv", "web", "proxy", "vpn", "fallback", "aggressive", "embed",
+	// Usar estratégia simples do media-roller (comprovadamente funcional)
+	info, err := yd.getVideoInfo(url)
+	if err != nil {
+		return fmt.Errorf("erro ao obter informações do vídeo: %v", err)
 	}
 	
-	for attempt, strategy := range strategies {
-		if attempt > 0 {
-			yd.broadcast(WSMessage{Type: "strategy", Strategy: strategy, Attempt: attempt + 1})
-			// Delay progressivo entre tentativas
-			time.Sleep(time.Duration(attempt*2) * time.Second)
-		}
-		
-		// Obter informações do vídeo
-		info, err := yd.getVideoInfoWithStrategy(url, strategy)
-		if err != nil {
-			lastErr = err
-			log.Printf("Estratégia %s falhou: %v", strategy, err)
-			if attempt < len(strategies)-1 {
-				yd.broadcast(WSMessage{Type: "progress", Percent: 5, Status: fmt.Sprintf("Tentativa %d falhou (%s), tentando: %s", attempt+1, strategy, strategies[attempt+1])})
-			}
-			continue
-		}
-		
-		// Se chegou aqui, conseguiu obter info, continuar com download
-		return yd.performDownload(url, quality, info, strategy)
-	}
-	
-	return fmt.Errorf("todas as estratégias falharam. Último erro: %v", lastErr)
+	// Realizar download
+	return yd.performDownload(url, quality, info)
 }
 
-func (yd *YouTubeDownloader) getVideoInfoWithStrategy(url, strategy string) (map[string]string, error) {
+func (yd *YouTubeDownloader) getVideoInfo(url string) (map[string]string, error) {
+	// Argumentos simplificados baseados no media-roller
 	args := []string{
 		"--get-title", "--get-duration", "--get-filename",
-		"-f", "best",
-		"--no-check-certificates",
-		"--prefer-free-formats",
-		"--no-warnings",
-		"--ignore-errors",
+		"--format", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+		"--newline",
+		"--restrict-filenames",
 	}
 	
-	// Estratégias específicas para cada tipo
-	switch strategy {
-	case "default":
-		args = append(args,
-			"--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-			"--referer", "https://www.youtube.com/")
-			
-	case "cookies":
-		args = append(args,
-			"--cookies-from-browser", "chrome,firefox,edge",
-			"--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-			
-	case "ios":
-		args = append(args,
-			"--user-agent", "com.google.ios.youtube/19.09.3 (iPhone16,2; U; CPU iOS 17_2_1 like Mac OS X;)",
-			"--add-header", "X-YouTube-Client-Name:5",
-			"--add-header", "X-YouTube-Client-Version:19.09.3")
-			
-	case "android":
-		args = append(args,
-			"--user-agent", "com.google.android.youtube/19.09.36 (Linux; U; Android 13) gzip",
-			"--add-header", "X-YouTube-Client-Name:3",
-			"--add-header", "X-YouTube-Client-Version:19.09.36")
-			
-	case "tv":
-		args = append(args,
-			"--user-agent", "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version",
-			"--add-header", "X-YouTube-Client-Name:85",
-			"--add-header", "X-YouTube-Client-Version:1.0")
-			
-	case "web":
-		args = append(args,
-			"--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-			"--add-header", "X-YouTube-Client-Name:1",
-			"--add-header", "X-YouTube-Client-Version:2.20240104.01.00")
-			
-	case "fallback":
-		args = append(args,
-			"--sleep-interval", "3",
-			"--max-sleep-interval", "7",
-			"--retries", "5",
-			"--user-agent", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")
-			
-	case "aggressive":
-		args = append(args,
-			"--extractor-args", "youtube:player_client=android,web",
-			"--sleep-interval", "5",
-			"--max-sleep-interval", "10",
-			"--retries", "10",
-			"--user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-			
-	case "proxy":
-		// Estratégia com proxy público gratuito para contornar bloqueios geográficos
-		args = append(args,
-			"--proxy", "http://proxy-server.scraperapi.com:8001",
-			"--proxy-headers", "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-			"--sleep-interval", "2",
-			"--max-sleep-interval", "5",
-			"--retries", "3",
-			"--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-			
-	case "vpn":
-		// Estratégia simulando VPN com diferentes IPs
-		args = append(args,
-			"--geo-bypass",
-			"--geo-bypass-country", "US",
-			"--extractor-args", "youtube:player_client=web",
-			"--sleep-interval", "3",
-			"--user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-			
-	case "embed":
-		// Tentar através do URL de embed como último recurso
-		embedUrl := strings.Replace(url, "watch?v=", "embed/", 1)
-		embedUrl = strings.Replace(embedUrl, "&", "?", 1)
-		args = append(args,
-			"--extractor-args", "youtube:player_client=embed",
-			"--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-			"--referer", "https://www.youtube.com/",
-			embedUrl)
-		// URL já adicionado, não adicionar novamente
-		goto skipUrlAdd
+	// Suporte a proxy via variável de ambiente (como media-roller)
+	if proxy := os.Getenv("YT_PROXY"); proxy != "" {
+		args = append(args, "--proxy", proxy)
 	}
 	
 	args = append(args, url)
-	skipUrlAdd:
 	
 	cmd := exec.Command("yt-dlp", args...)
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("erro ao obter informações do vídeo com estratégia %s: %v", strategy, err)
+		return nil, fmt.Errorf("erro ao obter informações do vídeo: %v", err)
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
@@ -281,135 +179,37 @@ func (yd *YouTubeDownloader) getVideoInfoWithStrategy(url, strategy string) (map
 	}, nil
 }
 
-func (yd *YouTubeDownloader) performDownload(url, quality string, info map[string]string, strategy string) error {
+func (yd *YouTubeDownloader) performDownload(url, quality string, info map[string]string) error {
 	// Broadcast informações do vídeo
 	yd.broadcast(WSMessage{Type: "info", Title: info["title"]})
-	yd.broadcast(WSMessage{Type: "progress", Percent: 10, Status: fmt.Sprintf("Preparando download (estratégia: %s)...", strategy)})
+	yd.broadcast(WSMessage{Type: "progress", Percent: 10, Status: "Preparando download..."})
 
-	// Preparar formato baseado na qualidade
-	var format string
-	switch quality {
-	case "1080p":
-		format = "best[height<=1080]"
-	case "720p":
-		format = "best[height<=720]"
-	case "480p":
-		format = "best[height<=480]"
-	case "360p":
-		format = "best[height<=360]"
-	default:
-		format = "best"
-	}
+	// Usar formato simplificado do media-roller (sem variável separada)
+	_ = quality // Usar a variável para evitar erro de compilação
 
 	// Normalizar nome do arquivo
 	normalizedFilename := yd.normalizeFilename(info["title"])
 	fullPath := filepath.Join(yd.downloadPath, normalizedFilename)
 
-	// Executar download com yt-dlp usando estratégias anti-bloqueio
+	// Argumentos simplificados baseados no media-roller
 	args := []string{
-		"-f", format,
+		"--format", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+		"--merge-output-format", "mp4",
+		"--trim-filenames", "100", 
+		"--recode-video", "mp4",
+		"--format-sort", "codec:h264",
+		"--restrict-filenames",
 		"--newline",
 		"--progress",
 		"-o", fullPath,
-		// Headers anti-bloqueio
-		"--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-		"--referer", "https://www.youtube.com/",
-		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-		"--add-header", "Accept-Language:en-US,en;q=0.5",
-		"--add-header", "Accept-Encoding:gzip, deflate, br",
-		"--add-header", "DNT:1",
-		"--add-header", "Connection:keep-alive",
-		"--add-header", "Upgrade-Insecure-Requests:1",
-		// Configurações anti-detecção
-		"--no-check-certificates",
-		"--prefer-free-formats",
-		"--no-warnings",
-		"--sleep-interval", "1",
-		"--max-sleep-interval", "3",
-		// Retry e recuperação
-		"--retries", "3",
-		"--fragment-retries", "3",
-		"--skip-unavailable-fragments",
-		"--abort-on-unavailable-fragment",
-		// Throttling para evitar rate limiting
-		"--limit-rate", "10M",
 	}
 	
-	// Adicionar estratégias específicas para download (mesmas da info)
-	switch strategy {
-	case "default":
-		// Headers já definidos acima
-		
-	case "cookies":
-		args = append(args, "--cookies-from-browser", "chrome,firefox,edge")
-		
-	case "ios":
-		args = append(args,
-			"--user-agent", "com.google.ios.youtube/19.09.3 (iPhone16,2; U; CPU iOS 17_2_1 like Mac OS X;)",
-			"--add-header", "X-YouTube-Client-Name:5",
-			"--add-header", "X-YouTube-Client-Version:19.09.3")
-			
-	case "android":
-		args = append(args,
-			"--user-agent", "com.google.android.youtube/19.09.36 (Linux; U; Android 13) gzip",
-			"--add-header", "X-YouTube-Client-Name:3",
-			"--add-header", "X-YouTube-Client-Version:19.09.36")
-			
-	case "tv":
-		args = append(args,
-			"--user-agent", "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version",
-			"--add-header", "X-YouTube-Client-Name:85",
-			"--add-header", "X-YouTube-Client-Version:1.0")
-			
-	case "web":
-		args = append(args,
-			"--add-header", "X-YouTube-Client-Name:1",
-			"--add-header", "X-YouTube-Client-Version:2.20240104.01.00")
-			
-	case "proxy":
-		args = append(args,
-			"--proxy", "http://proxy-server.scraperapi.com:8001",
-			"--proxy-headers", "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-			"--sleep-interval", "2",
-			"--max-sleep-interval", "5",
-			"--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-			
-	case "vpn":
-		args = append(args,
-			"--geo-bypass",
-			"--geo-bypass-country", "US",
-			"--extractor-args", "youtube:player_client=web",
-			"--sleep-interval", "3",
-			"--user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-			
-	case "fallback":
-		args = append(args,
-			"--sleep-interval", "3",
-			"--max-sleep-interval", "7",
-			"--user-agent", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")
-			
-	case "aggressive":
-		args = append(args,
-			"--extractor-args", "youtube:player_client=android,web",
-			"--sleep-interval", "5",
-			"--max-sleep-interval", "10",
-			"--user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-			
-	case "embed":
-		// Tentar através do URL de embed como último recurso
-		embedUrl := strings.Replace(url, "watch?v=", "embed/", 1)
-		embedUrl = strings.Replace(embedUrl, "&", "?", 1)
-		args = append(args,
-			"--extractor-args", "youtube:player_client=embed",
-			"--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-			"--referer", "https://www.youtube.com/",
-			embedUrl)
-		// URL já adicionado, não adicionar novamente
-		goto skipUrlAdd2
+	// Suporte a proxy via variável de ambiente (como media-roller)
+	if proxy := os.Getenv("YT_PROXY"); proxy != "" {
+		args = append(args, "--proxy", proxy)
 	}
 	
 	args = append(args, url)
-	skipUrlAdd2:
 	cmd := exec.Command("yt-dlp", args...)
 
 	stdout, err := cmd.StdoutPipe()
@@ -608,6 +408,22 @@ func main() {
 
 	log.Printf("Servidor iniciando na porta %s", port)
 	log.Printf("Diretório de downloads: %s", downloader.downloadPath)
+	
+	// Iniciar auto-update do yt-dlp (como media-roller - a cada 12 horas)
+	go func() {
+		ticker := time.NewTicker(12 * time.Hour)
+		defer ticker.Stop()
+		
+		for range ticker.C {
+			log.Printf("Atualizando yt-dlp...")
+			cmd := exec.Command("yt-dlp", "--update", "--update-to", "nightly")
+			if err := cmd.Run(); err != nil {
+				log.Printf("Erro ao atualizar yt-dlp: %v", err)
+			} else {
+				log.Printf("yt-dlp atualizado com sucesso")
+			}
+		}
+	}()
 	
 	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("Erro ao iniciar servidor: %v", err)
