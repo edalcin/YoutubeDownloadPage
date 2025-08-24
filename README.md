@@ -89,17 +89,38 @@ A aplicação estará disponível em `http://localhost:8080`
 - `GIN_MODE`: Modo do Gin (release/debug)
 
 ### Unraid
-Use o template disponível em `unraid-template.xml` ou:
 
+#### Instalação Rápida (Recomendado)
+1. **Docker** → **Add Container**
+2. **Template URL**: `https://raw.githubusercontent.com/edalcin/YoutubeDownloadPage/main/unraid-template.xml`
+3. **Apply** → Acesse `http://IP_UNRAID:8080`
+
+#### Configuração Manual
+| Campo | Valor |
+|-------|-------|
+| **Container Name** | `YouTube-Downloader` |
+| **Repository** | `ghcr.io/edalcin/youtubedownloadpage:latest` |
+| **Network** | `bridge` |
+| **Port** | `8080:8080` (TCP) |
+| **Volume** | `/mnt/user/downloads/youtube/:/downloads` (RW) |
+| **TZ** | `America/Sao_Paulo` |
+| **PUID** | `99` |
+| **PGID** | `100` |
+
+#### Comando Docker Equivalente
 ```bash
 docker run -d \
-  --name='YouTube-Downloader' \
-  --net='bridge' \
+  --name=YouTube-Downloader \
+  --net=bridge \
   --restart=unless-stopped \
-  -e TZ="America/Sao_Paulo" \
-  -e PUID='99' \
-  -e PGID='100' \
-  -p '8080:8080/tcp' \
-  -v '/mnt/user/downloads/youtube/':'/downloads':'rw' \
-  'ghcr.io/edalcin/youtubedownloadpage:latest'
+  -p 8080:8080 \
+  -v /mnt/user/downloads/youtube/:/downloads \
+  -e TZ=America/Sao_Paulo \
+  -e PUID=99 \
+  -e PGID=100 \
+  ghcr.io/edalcin/youtubedownloadpage:latest
 ```
+
+#### Guias Detalhados
+- **[UNRAID-INSTALL.md](UNRAID-INSTALL.md)** - Instalação rápida em 5 minutos
+- **[UNRAID_SETUP.md](UNRAID_SETUP.md)** - Configuração detalhada e solução de problemas
