@@ -12,9 +12,9 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar yt-dlp
-RUN pip3 install --no-cache-dir --upgrade pip && \
-    pip3 install --no-cache-dir yt-dlp
+# Instalar yt-dlp usando método mais confiável
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install --no-cache-dir yt-dlp
 
 # Habilitar mod_rewrite do Apache
 RUN a2enmod rewrite
