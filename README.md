@@ -9,6 +9,8 @@ Sistema completo para download de vídeos do YouTube em Full HD usando Docker.
 2. Pesquise por "YouTube Downloader"
 3. Clique em **Install**
 
+> **Nota**: A imagem Docker está disponível no GitHub Container Registry deste repositório como `ghcr.io/edalcin/youtubedownloadpage:latest`
+
 ### **Método 2: Docker Template Manual**
 1. Vá para **Docker** no Unraid
 2. Clique em **Add Container**
@@ -16,7 +18,7 @@ Sistema completo para download de vídeos do YouTube em Full HD usando Docker.
 
 ```
 Name: YouTube-Downloader
-Repository: youtube-downloader:latest
+Repository: ghcr.io/edalcin/youtubedownloadpage:latest
 WebUI: http://[IP]:[PORT:8080]/
 Icon URL: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/youtube.png
 
@@ -32,7 +34,18 @@ Environment Variables:
 - PGID: 100
 ```
 
-### **Método 3: Linha de Comando**
+### **Método 3: Docker Compose**
+1. Baixe o arquivo `docker-compose.yml` do repositório:
+```bash
+wget https://raw.githubusercontent.com/edalcin/YoutubeDownloadPage/main/docker-compose.yml
+```
+
+2. Execute o container:
+```bash
+docker-compose up -d
+```
+
+### **Método 4: Linha de Comando**
 ```bash
 docker run -d \
   --name=youtube-downloader \
@@ -41,7 +54,7 @@ docker run -d \
   -e PUID=99 \
   -e PGID=100 \
   --restart unless-stopped \
-  youtube-downloader:latest
+  ghcr.io/edalcin/youtubedownloadpage:latest
 ```
 
 ## 📁 Configuração de Pastas Unraid
