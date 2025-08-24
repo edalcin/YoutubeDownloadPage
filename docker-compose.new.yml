@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  youtube-downloader:
+    build:
+      context: .
+      dockerfile: Dockerfile.new
+    container_name: youtube-downloader-go
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./downloads:/downloads
+    environment:
+      - GIN_MODE=release
+      - DOWNLOAD_PATH=/downloads
+      - PORT=8080
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.youtube-downloader.rule=Host(`youtube.localhost`)"
+      - "traefik.http.services.youtube-downloader.loadbalancer.server.port=8080"
+
+networks:
+  default:
+    name: youtube-downloader-network
