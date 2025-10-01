@@ -8,6 +8,8 @@ class YouTubeDownloader {
 
         this.isDownloading = false;
         this.websocket = null;
+        this.selectedDirectory = null;
+        this.selectedFilename = null;
 
         this.init();
     }
@@ -16,6 +18,55 @@ class YouTubeDownloader {
         this.form.addEventListener('submit', this.handleSubmit.bind(this));
         document.getElementById('downloadAnother').addEventListener('click', this.resetForm.bind(this));
         document.getElementById('tryAgain').addEventListener('click', this.resetForm.bind(this));
+        document.getElementById('chooseSaveBtn').addEventListener('click', this.handleChooseSave.bind(this));
+
+        // Carregar último diretório salvo
+        this.loadLastDirectory();
+    }
+
+    async loadLastDirectory() {
+        // Tentar carregar do localStorage
+        const lastPath = localStorage.getItem('lastSavePath');
+        if (lastPath) {
+            document.getElementById('savePath').value = lastPath;
+            document.getElementById('downloadBtn').disabled = false;
+        }
+    }
+
+    async handleChooseSave() {
+        try {
+            // Verificar se o navegador suporta File System Access API
+            if (!('showDirectoryPicker' in window)) {
+                // Fallback: apenas mostrar mensagem e habilitar download
+                alert('Seu navegador não suporta seleção de diretório. O arquivo será salvo na pasta padrão de Downloads do navegador.');
+                document.getElementById('savePath').value = 'Pasta padrão de Downloads';
+                document.getElementById('downloadBtn').disabled = false;
+                return;
+            }
+
+            // Abrir seletor de diretório
+            const directoryHandle = await window.showDirectoryPicker({
+                mode: 'readwrite'
+            });
+
+            this.selectedDirectory = directoryHandle;
+
+            // Mostrar caminho selecionado
+            const path = directoryHandle.name;
+            document.getElementById('savePath').value = path;
+
+            // Salvar no localStorage
+            localStorage.setItem('lastSavePath', path);
+
+            // Habilitar botão de download
+            document.getElementById('downloadBtn').disabled = false;
+
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error('Erro ao selecionar diretório:', error);
+                this.showError('Erro ao selecionar diretório: ' + error.message);
+            }
+        }
     }
 
     saveLastPath(path) {
@@ -129,17 +180,23 @@ class YouTubeDownloader {
 
     async handleDownloadComplete(filename, message, size) {
         try {
-            // Iniciar download direto do arquivo (estratégia media-roller)
-            this.updateProgress(98, 'Iniciando download do arquivo...');
+            this.updateProgress(98, 'Preparando para salvar arquivo...');
 
-            // Criar link de download automático
-            const downloadUrl = `/api/download-file/${encodeURIComponent(filename)}`;
-            const a = document.createElement('a');
-            a.href = downloadUrl;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            // Baixar o arquivo como blob
+            const response = await fetch(`/api/download-file/${encodeURIComponent(filename)}`);
+            if (!response.ok) {
+                throw new Error('Erro ao baixar arquivo do servidor');
+            }
+
+            const blob = await response.blob();
+
+            // Se temos um diretório selecionado e o navegador suporta, salvar lá
+            if (this.selectedDirectory && 'showDirectoryPicker' in window) {
+                await this.saveToSelectedDirectory(filename, blob);
+            } else {
+                // Fallback: download automático
+                this.downloadFileFallback(filename, blob);
+            }
 
             // Salvar informação no localStorage
             this.saveLastPath(filename);
@@ -147,10 +204,36 @@ class YouTubeDownloader {
             this.showSuccess(message, filename, size);
             this.resetDownloadState();
         } catch (error) {
-            console.error('Erro ao baixar arquivo:', error);
-            this.showError('Erro ao baixar arquivo: ' + error.message);
+            console.error('Erro ao salvar arquivo:', error);
+            this.showError('Erro ao salvar arquivo: ' + error.message);
             this.resetDownloadState();
         }
+    }
+
+    async saveToSelectedDirectory(filename, blob) {
+        try {
+            // Criar arquivo no diretório selecionado
+            const fileHandle = await this.selectedDirectory.getFileHandle(filename, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+        } catch (error) {
+            console.error('Erro ao salvar no diretório selecionado:', error);
+            // Se falhar, usar fallback
+            this.downloadFileFallback(filename, blob);
+        }
+    }
+
+    downloadFileFallback(filename, blob) {
+        // Download automático para navegadores sem suporte
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
     
     updateProgress(percent, status, title = null) {
