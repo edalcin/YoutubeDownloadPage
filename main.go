@@ -349,6 +349,38 @@ func (yd *YouTubeDownloader) handleDownload(c *gin.Context) {
 	})
 }
 
+func (yd *YouTubeDownloader) handleDownloadFile(c *gin.Context) {
+	filename := c.Param("filename")
+	if filename == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nome do arquivo não fornecido"})
+		return
+	}
+
+	// Validar e sanitizar o nome do arquivo para segurança
+	filename = filepath.Base(filename)
+	fullPath := filepath.Join(yd.downloadPath, filename)
+
+	// Verificar se o arquivo existe
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Arquivo não encontrado"})
+		return
+	}
+
+	// Servir o arquivo
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Transfer-Encoding", "binary")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	c.Header("Content-Type", "video/mp4")
+	c.File(fullPath)
+
+	// Opcional: deletar o arquivo após o download
+	go func() {
+		time.Sleep(30 * time.Second) // Aguardar 30s para garantir que o download foi concluído
+		os.Remove(fullPath)
+		log.Printf("Arquivo temporário removido: %s", fullPath)
+	}()
+}
+
 func (yd *YouTubeDownloader) handleWebSocket(c *gin.Context) {
 	conn, err := yd.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -392,6 +424,7 @@ func main() {
 	api := r.Group("/api")
 	{
 		api.POST("/download", downloader.handleDownload)
+		api.GET("/download-file/:filename", downloader.handleDownloadFile)
 	}
 
 	// WebSocket

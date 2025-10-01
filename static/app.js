@@ -5,10 +5,16 @@ class YouTubeDownloader {
         this.progressContainer = document.getElementById('progressContainer');
         this.resultContainer = document.getElementById('resultContainer');
         this.errorContainer = document.getElementById('errorContainer');
-        
+
         this.isDownloading = false;
         this.websocket = null;
-        
+        this.fileHandle = null;
+        this.lastSuggestedPath = null;
+        this.downloadedBlob = null;
+
+        // Carregar último caminho do localStorage
+        this.loadLastDirectory();
+
         this.init();
     }
     
@@ -16,6 +22,30 @@ class YouTubeDownloader {
         this.form.addEventListener('submit', this.handleSubmit.bind(this));
         document.getElementById('downloadAnother').addEventListener('click', this.resetForm.bind(this));
         document.getElementById('tryAgain').addEventListener('click', this.resetForm.bind(this));
+    }
+
+    async loadLastDirectory() {
+        // Verificar se o navegador suporta File System Access API
+        if (!('showSaveFilePicker' in window)) {
+            console.log('File System Access API não suportada');
+            return;
+        }
+
+        // Carregar última pasta sugerida do localStorage
+        const lastPath = localStorage.getItem('lastDownloadPath');
+        if (lastPath) {
+            this.lastSuggestedPath = lastPath;
+        }
+    }
+
+    async saveLastPath(path) {
+        try {
+            // Armazenar último caminho usado
+            localStorage.setItem('lastDownloadPath', path);
+            this.lastSuggestedPath = path;
+        } catch (error) {
+            console.error('Erro ao salvar caminho:', error);
+        }
     }
     
     async handleSubmit(e) {
@@ -102,8 +132,7 @@ class YouTubeDownloader {
                 this.updateProgress(data.percent, data.status, data.title);
                 break;
             case 'success':
-                this.showSuccess(data.message, data.filename, data.size);
-                this.resetDownloadState();
+                this.handleDownloadComplete(data.filename, data.message, data.size);
                 break;
             case 'error':
                 this.showError(data.message);
@@ -116,6 +145,74 @@ class YouTubeDownloader {
                 this.updateStrategy(data.strategy, data.attempt);
                 break;
         }
+    }
+
+    async handleDownloadComplete(filename, message, size) {
+        try {
+            // Baixar o arquivo do servidor
+            this.updateProgress(98, 'Preparando para salvar arquivo...');
+
+            const response = await fetch(`/api/download-file/${encodeURIComponent(filename)}`);
+            if (!response.ok) {
+                throw new Error('Erro ao baixar arquivo do servidor');
+            }
+
+            const blob = await response.blob();
+            this.downloadedBlob = blob;
+
+            // Verificar se o navegador suporta File System Access API
+            if ('showSaveFilePicker' in window) {
+                await this.saveFileWithPicker(filename, blob);
+            } else {
+                // Fallback: download automático
+                this.downloadFileFallback(filename, blob);
+            }
+
+            this.showSuccess(message, filename, size);
+            this.resetDownloadState();
+        } catch (error) {
+            console.error('Erro ao salvar arquivo:', error);
+            this.showError('Erro ao salvar arquivo: ' + error.message);
+            this.resetDownloadState();
+        }
+    }
+
+    async saveFileWithPicker(filename, blob) {
+        try {
+            const opts = {
+                suggestedName: filename,
+                types: [{
+                    description: 'Video Files',
+                    accept: {'video/mp4': ['.mp4']},
+                }],
+            };
+
+            const fileHandle = await window.showSaveFilePicker(opts);
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+
+            // Salvar informação sobre o último download
+            await this.saveLastPath(fileHandle.name);
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                throw new Error('Salvamento cancelado pelo usuário');
+            }
+            throw error;
+        }
+    }
+
+    downloadFileFallback(filename, blob) {
+        // Fallback para navegadores que não suportam File System Access API
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
     
     updateProgress(percent, status, title = null) {
