@@ -153,23 +153,24 @@ func (yd *YouTubeDownloader) getVideoInfo(url string) (map[string]string, error)
 		"--newline",
 		"--restrict-filenames",
 	}
-	
+
 	// Suporte a proxy via variável de ambiente (como media-roller)
 	if proxy := os.Getenv("YT_PROXY"); proxy != "" {
 		args = append(args, "--proxy", proxy)
 	}
-	
+
 	args = append(args, url)
-	
+
 	cmd := exec.Command("yt-dlp", args...)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("erro ao obter informações do vídeo: %v", err)
+		// Capturar stderr para ver o erro real
+		return nil, fmt.Errorf("erro ao obter informações do vídeo: %v - Output: %s", err, string(output))
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	if len(lines) < 3 {
-		return nil, fmt.Errorf("informações incompletas do vídeo")
+		return nil, fmt.Errorf("informações incompletas do vídeo - recebido %d linhas: %s", len(lines), string(output))
 	}
 
 	return map[string]string{
