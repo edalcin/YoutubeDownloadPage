@@ -40,10 +40,7 @@ docker run -d \
   --net=bridge \
   --restart=unless-stopped \
   -p 8999:8080 \
-  -v /mnt/user/downloads/youtube/:/downloads \
   -e TZ=America/Sao_Paulo \
-  -e PUID=99 \
-  -e PGID=100 \
   ghcr.io/edalcin/youtubedownloadpage:latest
 ```
 
@@ -53,10 +50,11 @@ docker run -d ^
   --name=YouTube-Downloader ^
   --restart=unless-stopped ^
   -p 8999:8080 ^
-  -v "%USERPROFILE%\Downloads\youtube:/downloads" ^
   -e TZ=America/Sao_Paulo ^
   ghcr.io/edalcin/youtubedownloadpage:latest
 ```
+
+**Nota:** Não é necessário mapear volumes (`-v`). Os arquivos são salvos diretamente no computador do usuário através do navegador.
 
 ### 5. Verificar se está rodando
 ```bash
@@ -86,13 +84,6 @@ netstat -tulpn | grep 8999  # Linux
 netstat -ano | findstr :8999  # Windows
 ```
 
-### Problemas de permissão no volume
-```bash
-# Linux/Unraid - ajustar permissões do diretório
-sudo chown -R 99:100 /mnt/user/downloads/youtube/
-sudo chmod -R 755 /mnt/user/downloads/youtube/
-```
-
 ### Forçar recriação completa
 ```bash
 # Remover tudo e começar do zero
@@ -106,6 +97,5 @@ docker pull ghcr.io/edalcin/youtubedownloadpage:latest
 ## Notas
 
 - **Porta**: O container usa a porta 8080 internamente, mas pode ser mapeada para qualquer porta externa (ex: 8999)
-- **Volume**: Ajuste o caminho `/mnt/user/downloads/youtube/` para o diretório desejado no seu sistema
 - **Timezone**: Ajuste `TZ=America/Sao_Paulo` para sua timezone
-- **PUID/PGID**: Use `99:100` para Unraid, ou ajuste para seu usuário (Linux: execute `id` para ver seus IDs)
+- **Downloads**: Os arquivos são salvos diretamente no computador do usuário através do navegador (não há volumes mapeados)

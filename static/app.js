@@ -81,20 +81,20 @@ class YouTubeDownloader {
     
     async handleSubmit(e) {
         e.preventDefault();
-        
+
         if (this.isDownloading) return;
-        
+
         const formData = new FormData(this.form);
         const data = {
             url: formData.get('youtube_url').trim(),
-            quality: formData.get('quality')
+            quality: 'best' // Sempre melhor qualidade
         };
-        
+
         if (!this.validateURL(data.url)) {
             this.showError('Por favor, insira uma URL válida do YouTube');
             return;
         }
-        
+
         this.startDownload(data);
     }
     

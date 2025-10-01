@@ -28,9 +28,9 @@ RUN apk --no-cache add \
 RUN addgroup -g 1000 appuser && \
     adduser -D -u 1000 -G appuser appuser
 
-# Criar diretório para downloads
-RUN mkdir -p /downloads && \
-    chown appuser:appuser /downloads
+# Criar diretório temporário para downloads do servidor
+RUN mkdir -p /tmp/downloads && \
+    chown appuser:appuser /tmp/downloads
 
 # Copiar binário do build stage
 COPY --from=builder /app/youtube-downloader /usr/local/bin/
@@ -43,6 +43,6 @@ EXPOSE 8080
 
 # Variáveis de ambiente
 ENV GIN_MODE=release
-ENV DOWNLOAD_PATH=/downloads
+ENV DOWNLOAD_PATH=/tmp/downloads
 
 CMD ["youtube-downloader"]

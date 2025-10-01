@@ -25,10 +25,7 @@ docker run -d \
   --net=bridge \
   --restart=unless-stopped \
   -p 8999:8080 \
-  -v /mnt/user/downloads/youtube/:/downloads \
   -e TZ=America/Sao_Paulo \
-  -e PUID=99 \
-  -e PGID=100 \
   ghcr.io/edalcin/youtubedownloadpage:latest
 
 # 5. Verificar se está rodando

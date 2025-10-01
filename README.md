@@ -36,15 +36,11 @@ docker build -t youtube-downloader .
 # Executar container
 docker run -d \
   -p 8080:8080 \
-  -v /caminho/downloads:/downloads \
   --name youtube-downloader \
   youtube-downloader
 ```
 
-### Docker Compose
-```bash
-docker-compose up -d
-```
+**Nota:** Não é necessário mapear volumes. O usuário escolhe onde salvar os arquivos através da interface web usando o botão "Salvar como...".
 
 ## 🛠️ Desenvolvimento Local
 
@@ -87,8 +83,9 @@ A aplicação estará disponível em `http://localhost:8080`
 
 ### Variáveis de Ambiente
 - `PORT`: Porta do servidor (padrão: 8080)
-- `DOWNLOAD_PATH`: Diretório para salvar downloads (padrão: /downloads)
 - `GIN_MODE`: Modo do Gin (release/debug)
+
+**Nota:** A variável `DOWNLOAD_PATH` não é mais necessária, pois os arquivos são salvos diretamente no computador do usuário através do navegador.
 
 ### Unraid
 
@@ -104,10 +101,9 @@ A aplicação estará disponível em `http://localhost:8080`
 | **Repository** | `ghcr.io/edalcin/youtubedownloadpage:latest` |
 | **Network** | `bridge` |
 | **Port** | `8080:8080` (TCP) |
-| **Volume** | `/mnt/user/downloads/youtube/:/downloads` (RW) |
 | **TZ** | `America/Sao_Paulo` |
-| **PUID** | `99` |
-| **PGID** | `100` |
+
+**Nota:** Não é necessário configurar volumes. Os arquivos são salvos diretamente no computador do usuário.
 
 #### Comando Docker Equivalente
 ```bash
@@ -116,10 +112,7 @@ docker run -d \
   --net=bridge \
   --restart=unless-stopped \
   -p 8080:8080 \
-  -v /mnt/user/downloads/youtube/:/downloads \
   -e TZ=America/Sao_Paulo \
-  -e PUID=99 \
-  -e PGID=100 \
   ghcr.io/edalcin/youtubedownloadpage:latest
 ```
 

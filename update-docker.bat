@@ -24,7 +24,6 @@ docker run -d ^
   --name=YouTube-Downloader ^
   --restart=unless-stopped ^
   -p 8999:8080 ^
-  -v "%USERPROFILE%\Downloads\youtube:/downloads" ^
   -e TZ=America/Sao_Paulo ^
   ghcr.io/edalcin/youtubedownloadpage:latest
 
