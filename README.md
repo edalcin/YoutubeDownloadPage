@@ -2,6 +2,8 @@
 
 Uma aplicação moderna para download de vídeos do YouTube, desenvolvida em **Go** com interface web limpa e performática.
 
+> **Baseado em:** [media-roller](https://github.com/rroller/media-roller) - Estratégia de download comprovada e otimizada para múltiplas plataformas.
+
 ## 🚀 Características
 
 ### Arquitetura Otimizada

@@ -188,28 +188,28 @@ func (yd *YouTubeDownloader) performDownload(url, quality string, info map[strin
 	// Usar formato simplificado do media-roller (sem variável separada)
 	_ = quality // Usar a variável para evitar erro de compilação
 
-	// Normalizar nome do arquivo
-	normalizedFilename := yd.normalizeFilename(info["title"])
-	fullPath := filepath.Join(yd.downloadPath, normalizedFilename)
+	// Usar padrão do yt-dlp para nome do arquivo: %(id)s.%(ext)s
+	// Isso garante que o arquivo será criado corretamente
+	outputTemplate := filepath.Join(yd.downloadPath, "%(id)s.%(ext)s")
 
-	// Argumentos simplificados baseados no media-roller
+	// Argumentos EXATOS do media-roller (estratégia comprovada)
 	args := []string{
 		"--format", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
 		"--merge-output-format", "mp4",
-		"--trim-filenames", "100", 
+		"--trim-filenames", "100",
 		"--recode-video", "mp4",
 		"--format-sort", "codec:h264",
 		"--restrict-filenames",
 		"--newline",
 		"--progress",
-		"-o", fullPath,
+		"--output", outputTemplate,
 	}
-	
+
 	// Suporte a proxy via variável de ambiente (como media-roller)
 	if proxy := os.Getenv("YT_PROXY"); proxy != "" {
 		args = append(args, "--proxy", proxy)
 	}
-	
+
 	args = append(args, url)
 	cmd := exec.Command("yt-dlp", args...)
 
@@ -236,18 +236,40 @@ func (yd *YouTubeDownloader) performDownload(url, quality string, info map[strin
 		return fmt.Errorf("erro durante download: %v", err)
 	}
 
-	// Verificar se arquivo foi criado e obter tamanho
-	if stat, err := os.Stat(fullPath); err == nil {
-		size := yd.formatBytes(stat.Size())
-		yd.broadcast(WSMessage{
-			Type: "success", 
-			Message: "Download concluído com sucesso!",
-			Filename: normalizedFilename,
-			Size: size,
-		})
-	} else {
+	// Encontrar o arquivo criado no diretório
+	files, err := filepath.Glob(filepath.Join(yd.downloadPath, "*.*"))
+	if err != nil || len(files) == 0 {
 		return fmt.Errorf("arquivo não foi criado corretamente")
 	}
+
+	// Pegar o arquivo mais recente
+	var newestFile string
+	var newestTime time.Time
+	for _, file := range files {
+		info, err := os.Stat(file)
+		if err != nil {
+			continue
+		}
+		if info.ModTime().After(newestTime) {
+			newestTime = info.ModTime()
+			newestFile = file
+		}
+	}
+
+	if newestFile == "" {
+		return fmt.Errorf("arquivo não foi criado corretamente")
+	}
+
+	stat, _ := os.Stat(newestFile)
+	size := yd.formatBytes(stat.Size())
+	filename := filepath.Base(newestFile)
+
+	yd.broadcast(WSMessage{
+		Type:     "success",
+		Message:  "Download concluído com sucesso!",
+		Filename: filename,
+		Size:     size,
+	})
 
 	return nil
 }
