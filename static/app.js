@@ -8,6 +8,7 @@ class YouTubeDownloader {
 
         this.isDownloading = false;
         this.websocket = null;
+        this.videoTitle = null;
 
         this.init();
     }
@@ -109,6 +110,8 @@ class YouTubeDownloader {
                 this.resetDownloadState();
                 break;
             case 'info':
+                // Salvar o título do vídeo para usar como nome do arquivo
+                this.videoTitle = data.title;
                 this.updateVideoInfo(data.title);
                 break;
             case 'strategy':
@@ -121,11 +124,18 @@ class YouTubeDownloader {
         try {
             this.updateProgress(98, 'Iniciando download do arquivo...');
 
+            // Usar o título do vídeo como nome sugerido, ou o filename original se não tiver
+            let suggestedName = filename;
+            if (this.videoTitle) {
+                // Sanitizar o título para usar como nome de arquivo
+                suggestedName = this.sanitizeFilename(this.videoTitle) + '.mp4';
+            }
+
             // Download direto usando link - o navegador pergunta onde salvar
             const downloadUrl = `/api/download-file/${encodeURIComponent(filename)}`;
             const a = document.createElement('a');
             a.href = downloadUrl;
-            a.download = filename;
+            a.download = suggestedName; // Usar o título sanitizado como nome sugerido
             a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
@@ -135,13 +145,23 @@ class YouTubeDownloader {
                 document.body.removeChild(a);
             }, 100);
 
-            this.showSuccess(message, filename, size);
+            this.showSuccess(message, suggestedName, size);
             this.resetDownloadState();
         } catch (error) {
             console.error('Erro ao baixar arquivo:', error);
             this.showError('Erro ao baixar arquivo: ' + error.message);
             this.resetDownloadState();
         }
+    }
+
+    sanitizeFilename(filename) {
+        // Remove caracteres inválidos para nomes de arquivo
+        // Mantém apenas letras, números, espaços, hífens e underscores
+        return filename
+            .replace(/[<>:"/\\|?*]/g, '') // Remove caracteres inválidos
+            .replace(/\s+/g, ' ') // Normaliza espaços múltiplos
+            .trim() // Remove espaços nas extremidades
+            .substring(0, 200); // Limita o tamanho do nome
     }
     
     updateProgress(percent, status, title = null) {
