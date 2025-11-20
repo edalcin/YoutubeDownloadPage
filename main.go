@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -358,8 +359,15 @@ func (yd *YouTubeDownloader) readProgress(pipe interface{}) {
 	}
 }
 
-func (yd *YouTubeDownloader) readStderr(pipe *os.File, output *strings.Builder) {
-	scanner := bufio.NewScanner(pipe)
+func (yd *YouTubeDownloader) readStderr(reader interface{}, output *strings.Builder) {
+	// Type assert to io.Reader interface
+	r, ok := reader.(io.Reader)
+	if !ok {
+		log.Printf("Warning: Could not assert stderr to io.Reader")
+		return
+	}
+
+	scanner := bufio.NewScanner(r)
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
