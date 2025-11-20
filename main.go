@@ -192,12 +192,11 @@ func (yd *YouTubeDownloader) performDownload(url, quality string, info map[strin
 	// Isso garante que o arquivo será criado corretamente
 	outputTemplate := filepath.Join(yd.downloadPath, "%(id)s.%(ext)s")
 
-	// Argumentos EXATOS do media-roller (estratégia comprovada)
+	// Argumentos para download (sem recodificação que pode falhar)
 	args := []string{
 		"--format", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
 		"--merge-output-format", "mp4",
 		"--trim-filenames", "100",
-		"--recode-video", "mp4",
 		"--format-sort", "codec:h264",
 		"--restrict-filenames",
 		"--newline",
@@ -227,14 +226,35 @@ func (yd *YouTubeDownloader) performDownload(url, quality string, info map[strin
 		return fmt.Errorf("erro ao iniciar comando: %v", err)
 	}
 
-	// Ler progresso em tempo real
-	go yd.readProgress(stdout)
-	go yd.readProgress(stderr)
+	// Ler progresso em tempo real com sincronização
+	var stderrOutput strings.Builder
+	var wg sync.WaitGroup
+	wg.Add(2)
 
-	// Aguardar conclusão
+	go func() {
+		yd.readProgress(stdout)
+		wg.Done()
+	}()
+
+	go func() {
+		yd.readStderr(stderr, &stderrOutput)
+		wg.Done()
+	}()
+
+	// Aguardar conclusão do comando
 	if err := cmd.Wait(); err != nil {
+		// Aguardar que as goroutines terminem de ler os pipes
+		wg.Wait()
+
+		errMsg := stderrOutput.String()
+		if errMsg != "" {
+			return fmt.Errorf("erro durante download: %s", strings.TrimSpace(errMsg))
+		}
 		return fmt.Errorf("erro durante download: %v", err)
 	}
+
+	// Aguardar que as goroutines terminem de ler os pipes
+	wg.Wait()
 
 	// Encontrar o arquivo criado no diretório
 	files, err := filepath.Glob(filepath.Join(yd.downloadPath, "*.*"))
@@ -276,7 +296,7 @@ func (yd *YouTubeDownloader) performDownload(url, quality string, info map[strin
 
 func (yd *YouTubeDownloader) readProgress(pipe interface{}) {
 	var scanner *bufio.Scanner
-	
+
 	if stdout, ok := pipe.(*os.File); ok {
 		scanner = bufio.NewScanner(stdout)
 	} else {
@@ -284,26 +304,26 @@ func (yd *YouTubeDownloader) readProgress(pipe interface{}) {
 	}
 
 	progressRegex := regexp.MustCompile(`(\d+\.?\d*)%`)
-	
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		
+
 		if line == "" {
 			continue
 		}
 
 		log.Printf("yt-dlp output: %s", line)
-		
+
 		// Broadcast todos os erros detalhados para o usuário
-		if strings.Contains(strings.ToLower(line), "error") || 
+		if strings.Contains(strings.ToLower(line), "error") ||
 		   strings.Contains(strings.ToLower(line), "warning") ||
 		   strings.Contains(line, "HTTP Error") ||
 		   strings.Contains(line, "Unable to extract") ||
 		   strings.Contains(line, "blocked") ||
 		   strings.Contains(line, "unavailable") {
 			yd.broadcast(WSMessage{
-				Type: "progress", 
-				Percent: 15, 
+				Type: "progress",
+				Percent: 15,
 				Status: fmt.Sprintf("Debug: %s", line),
 			})
 		}
@@ -313,8 +333,8 @@ func (yd *YouTubeDownloader) readProgress(pipe interface{}) {
 			if percent, err := strconv.ParseFloat(matches[1], 64); err == nil {
 				displayPercent := int(20 + (percent * 0.75)) // Mapeia para 20-95%
 				yd.broadcast(WSMessage{
-					Type: "progress", 
-					Percent: displayPercent, 
+					Type: "progress",
+					Percent: displayPercent,
 					Status: fmt.Sprintf("Baixando... %.1f%%", percent),
 				})
 			}
@@ -324,8 +344,8 @@ func (yd *YouTubeDownloader) readProgress(pipe interface{}) {
 				if percent, err := strconv.ParseFloat(matches[1], 64); err == nil {
 					displayPercent := int(20 + (percent * 0.75))
 					yd.broadcast(WSMessage{
-						Type: "progress", 
-						Percent: displayPercent, 
+						Type: "progress",
+						Percent: displayPercent,
 						Status: fmt.Sprintf("Baixando... %.1f%%", percent),
 					})
 				}
@@ -334,6 +354,35 @@ func (yd *YouTubeDownloader) readProgress(pipe interface{}) {
 			yd.broadcast(WSMessage{Type: "progress", Percent: 25, Status: "Iniciando download do arquivo..."})
 		} else if strings.Contains(line, "100%") || strings.Contains(strings.ToLower(line), "download completed") {
 			yd.broadcast(WSMessage{Type: "progress", Percent: 95, Status: "Finalizando..."})
+		}
+	}
+}
+
+func (yd *YouTubeDownloader) readStderr(pipe *os.File, output *strings.Builder) {
+	scanner := bufio.NewScanner(pipe)
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		if line == "" {
+			continue
+		}
+
+		log.Printf("yt-dlp error: %s", line)
+		output.WriteString(line + "\n")
+
+		// Broadcast mensagens de erro importantes para o usuário
+		if strings.Contains(strings.ToLower(line), "error") ||
+		   strings.Contains(line, "HTTP Error") ||
+		   strings.Contains(line, "Unable to extract") ||
+		   strings.Contains(line, "blocked") ||
+		   strings.Contains(line, "unavailable") ||
+		   strings.Contains(line, "not available") {
+			yd.broadcast(WSMessage{
+				Type: "progress",
+				Percent: 15,
+				Status: fmt.Sprintf("Erro detectado: %s", line),
+			})
 		}
 	}
 }
