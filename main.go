@@ -153,6 +153,7 @@ func (yd *YouTubeDownloader) getVideoInfo(url string) (map[string]string, error)
 		"--format", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
 		"--newline",
 		"--restrict-filenames",
+		"--extractor-args", "youtube:player_client=default,mediaconnect",
 	}
 
 	// Suporte a proxy via variável de ambiente (como media-roller)
@@ -203,6 +204,7 @@ func (yd *YouTubeDownloader) performDownload(url, quality string, info map[strin
 		"--newline",
 		"--progress",
 		"--output", outputTemplate,
+		"--extractor-args", "youtube:player_client=default,mediaconnect",
 	}
 
 	// Suporte a proxy via variável de ambiente (como media-roller)

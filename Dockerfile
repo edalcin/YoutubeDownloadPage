@@ -18,6 +18,7 @@ RUN apk --no-cache add \
     ca-certificates \
     tzdata \
     python3 \
+    nodejs \
     && rm -rf /var/cache/apk/* \
     # Instalar yt-dlp diretamente do GitHub (sempre atualizado)
     && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
